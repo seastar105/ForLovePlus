@@ -3,6 +3,7 @@ from PIL import ImageGrab
 
 def GetScreenshot1():
     im = ImageGrab.grab()
+    a = type(im)
 
 if __name__ == "__main__":
     while True:

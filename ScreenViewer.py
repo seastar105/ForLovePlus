@@ -20,7 +20,9 @@ class ScreenViewer:
         self.l, self.t, self.r, self.b = 0, 0, 0, 0
         #Border on left and top to remove
         self.bl, self.bt, self.br, self.bb = 12, 31, 12, 20
- 
+
+    # TODO : this function will be used to assign HWND
+    #        and argument will be specific HWND
     #Gets handle of window to view
     #wname:         Title of window to find
     #Return:        True on success; False on failure
@@ -73,16 +75,19 @@ class ScreenViewer:
         #Third tuple is the start position in source
         cDC.BitBlt((0,0), (w, h), dcObj, (self.bl, self.bt), win32con.SRCCOPY)
         bmInfo = dataBitMap.GetInfo()
-        im = np.frombuffer(dataBitMap.GetBitmapBits(True), dtype = np.uint8)
+        #im = np.frombuffer(dataBitMap.GetBitmapBits(True), dtype = np.uint8)   # Numpy Implementation test using PIL
+        bmStr = dataBitMap.GetBitmapBits(True)
+        im = Image.frombuffer('RGB',(bmInfo['bmWidth'],bmInfo['bmHeight']),bmStr,'raw','BGRX',0,1)
         dcObj.DeleteDC()
         cDC.DeleteDC()
         win32gui.ReleaseDC(self.hwnd, wDC)
         win32gui.DeleteObject(dataBitMap.GetHandle())
+        return im
         #Bitmap has 4 channels like: BGRA. Discard Alpha and flip order to RGB
         #For 800x600 images:
         #Remove 12 pixels from bottom + border
         #Remove 4 pixels from left and right + border
-        return im.reshape(bmInfo['bmHeight'], bmInfo['bmWidth'], 4)[:, :, -2::-1]
+        #return im.reshape(bmInfo['bmHeight'], bmInfo['bmWidth'], 4)[:, :, -2::-1]
     #Begins recording images of the screen
     def Start(self):
     #if self.hwnd is None:

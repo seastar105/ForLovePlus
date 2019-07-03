@@ -38,7 +38,7 @@ if __name__ == "__main__":
     ex = App()
     windowList = list(getOpenWindow())
     num = 1
-    ex.sv.GetHWND(win32gui.GetWindowText(windowList[num]))
+    ex.sv.GetHWND(win32gui.GetWindowText(windowList[num][0]))
     ex.initUI()
     sys.exit(app.exec_())
    
