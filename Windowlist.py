@@ -1,4 +1,4 @@
-import win32gui
+from win32 import win32gui
 
 
 def EnumWindowsHandler(hwnd, extra):
@@ -9,13 +9,14 @@ def EnumWindowsHandler(hwnd, extra):
                 hicon = win32gui.GetClassLong(hwnd, -14)
                 if hicon:
                     extra.add((hwnd, win32gui.GetWindowText(hwnd)))
-                
+
 
 '''
     it returns list of handlers of open windows as set
 '''
 
 def getOpenWindow():
+    desktop = win32gui.GetDesktopWindow()
     windowSet = set()
     win32gui.EnumWindows(EnumWindowsHandler,windowSet)
-    return windowSet
+    return list(windowSet)

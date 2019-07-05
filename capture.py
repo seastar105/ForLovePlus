@@ -1,14 +1,16 @@
+import win32gui
 import time
 from PIL import ImageGrab
+from ScreenViewer import ScreenViewer
+from Windowlist import getOpenWindow
 
 def GetScreenshot1():
     im = ImageGrab.grab()
-    a = type(im)
 
 if __name__ == "__main__":
-    while True:
-        t1 = time.time()
-        GetScreenshot1()
-        t2 = time.time()
-        print("Elapsed: " + str(t2-t1))
-        
+    list = list(getOpenWindow())
+    sv = ScreenViewer()
+    sv.GetHWND(win32gui.GetWindowText(list[1][0]))
+    sv.Start()
+    time.sleep(1)
+    sv.Stop()

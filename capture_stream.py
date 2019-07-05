@@ -21,21 +21,21 @@ class Capture(QWidget):
         self.setLayout(layout)
         self.fw = 640
         self.fh = 480
-    
+
     def setHWND(self):
         self.sv.mut.acquire()
         self.list = list(getOpenWindow())
         print(self.list)
-        num = 1
-        self.sv.GetHWND(win32gui.GetWindowText(self.list[num][0]))
+        num = 2
+        self.sv.GetHWND(self.list[num][0])
         self.getNextFrame()
         self.sv.mut.release()
-    
+
     def getNextFrame(self):
         im = self.sv.GetScreenImg()
-        #height, width, channel = im.shape
-        #bytesPerLine = 3 * width
-        self.cur_img = ImageQt.ImageQt(im) #QtGui.QImage(im.tobytes(), width, height, bytesPerLine, QtGui.QImage.Format_RGB888)
+        height, width, channel = im.shape
+        bytesPerLine = 3 * width
+        self.cur_img = QtGui.QImage(im.tobytes(), width, height, bytesPerLine, QtGui.QImage.Format_RGB888)
         pixmap = QtGui.QPixmap.fromImage(self.cur_img)
         pixmap.scaled(self.fw, self.fh, QtCore.Qt.KeepAspectRatio)
         self.frame.setPixmap(pixmap)
