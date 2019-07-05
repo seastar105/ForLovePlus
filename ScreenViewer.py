@@ -39,9 +39,7 @@ class ScreenViewer:
     def GetScreen(self):
         while self.i0 is None:      #Screen hasn't been captured yet
             pass
-        self.mut.acquire()
         s = self.i0
-        self.mut.release()
         return s
          
     #Get's the latest image of the window along with timestamp

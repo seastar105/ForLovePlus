@@ -15,7 +15,14 @@ from Windowlist import getOpenWindow
 class MainWidget(QWidget) :
     def __init__(self):
         super().__init__()
+        self.initUI()
 
+        self.captureUnit = CaptureUnit()
+        self.curHwnd = None
+        self.curQim = None
+        self.windowName = None
+
+    def initUI(self):
         self.screen = QLabel()          # displays captured image
         self.outImage = None            # saves Captured Image
         self.VLayout = QVBoxLayout()
@@ -42,18 +49,12 @@ class MainWidget(QWidget) :
         self.screen.setAlignment(QtCore.Qt.AlignCenter)
         self.setLayout(self.VLayout)
 
-        self.captureUnit = CaptureUnit()
-        self.curHwnd = None
-        self.curQim = None
-        self.windowName = None
-
 
     def GetNextImage(self):
-        self.outImage = self.captureUnit.GetScreenImg()
+        self.outImage = self.captureUnit.GetScreen()
         height, width, channel = self.outImage.shape
         bytesPerLine = 3 * width
-        self.outImage = np.require(self.outImage, np.uint8, 'C')
-        self.curQim = QtGui.QImage(self.outImage.data, width, height, bytesPerLine, QtGui.QImage.Format_RGB888)
+        self.curQim = QtGui.QImage(self.outImage.tobytes(), width, height, bytesPerLine, QtGui.QImage.Format_RGB888)
         pixmap = QtGui.QPixmap.fromImage(self.curQim)
         self.screen.setPixmap(pixmap.scaled(self.screen.width(),self.screen.height(),
                         QtCore.Qt.KeepAspectRatio,QtCore.Qt.SmoothTransformation))
@@ -62,14 +63,16 @@ class MainWidget(QWidget) :
     def SetHWND(self, HWND):
         self.captureUnit.mut.acquire()
         if self.captureUnit.GetHWND(HWND):
-           self.windowName = win32gui.GetWindowText(HWND)
-           self.curHwnd = HWND
+            self.windowName = win32gui.GetWindowText(HWND)
+            self.curHwnd = HWND
+            self.captureUnit.GetScreenImg()
         self.captureUnit.mut.release()
 
     def Start(self):
         self.timer = QtCore.QTimer()
         self.timer.timeout.connect(self.GetNextImage)
         self.timer.start(1000./30)
+        self.captureUnit.Start()
 
     def Stop(self):
         self.timer.stop()
@@ -83,22 +86,33 @@ class MainWidget(QWidget) :
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
+        self.initUI()
+
+    def initUI(self):
         self.desktopWidth =  QDesktopWidget().screenGeometry().width()
         self.desktopHeight = QDesktopWidget().screenGeometry().height()
         self.setGeometry(0,0,self.desktopWidth,self.desktopHeight)
         self.centerWidget = MainWidget()
         self.centerWidget.SetSize(self.desktopHeight/2, self.desktopWidth/2)
         self.windowlist = getOpenWindow()
-        self.centerWidget.SetHWND(self.windowlist[1][0])
+        self.SetHWND(self.windowlist[0][0])     # debugging code
         self.setCentralWidget(self.centerWidget)
+        self.centerWidget.Start()                            # debugging code
 
+    def SetHWND(self, HWND):
+        self.centerWidget.SetHWND(HWND)
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
+    win = MainWindow()
+    print(win.centerWidget.windowName)
+    '''
     win = MainWidget()
     windowlist = getOpenWindow()
     win.SetHWND(windowlist[1][0])
     win.Start()
     win.setGeometry(100,100,1000,1000)
+    print(win.windowName)
+    '''
     win.show()
     sys.exit(app.exec_())
