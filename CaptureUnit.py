@@ -1,6 +1,6 @@
 from PIL import Image
 import numpy as np
-import win32gui
+from win32 import win32gui
 import win32ui, win32con
 from threading import Thread, Lock
 import time
@@ -19,6 +19,7 @@ class CaptureUnit:
         self.curImage = None          #i0 is the latest image
         self.tmpImage = None          #i1 is used as a temporary variable
         self.loopFlag = False         #Continue looping flag
+        self.thrd = Thread(target=self.ScreenUpdateT)
         #Left, Top, Right, and bottom of the screen window
         self.winLeft, self.winTop, self.winRight, self.winBottom = 0, 0, 0, 0
 
@@ -55,7 +56,7 @@ class CaptureUnit:
     def GetScreenImg(self):
         if self.hwnd is None:
             raise Exception("HWND is none. HWND not called or invalid window name provided.")
-        self.winLeft, self.winTop, self.winRight, self.winBottom = win32gui.GetWindowRect(self.hwnd)
+        self.winLeft, self.winTop, self.winRight, self.winBottom = win32gui.GetClientRect(self.hwnd)
         # Calculate Width of Window
         w = self.winRight - self.winLeft
         # Calculate Height of Window
@@ -85,9 +86,9 @@ class CaptureUnit:
     def Start(self):
     #if self.hwnd is None:
     #    return False
+        if self.thrd.isAlive() == False:
+            self.thrd.start()
         self.loopFlag = True
-        thrd = Thread(target = self.ScreenUpdateT)
-        thrd.start()
         return True
 
     #Stop the async thread that is capturing images
