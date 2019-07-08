@@ -11,6 +11,13 @@ def EnumWindowsHandler(hwnd, extra):
                 if hicon:
                     extra.add((hwnd, win32gui.GetWindowText(hwnd)))
 
+def obsLikeHandler(hwnd, extra):
+    styles = win32gui.GetWindowLong(hwnd,win32con.GWL_STYLE)
+    exStyle = win32gui.GetWindowLong(hwnd,win32con.GWL_EXSTYLE)
+    if win32gui.IsWindowVisible(hwnd) and styles & win32con.WS_CHILD == 0 and \
+        exStyle & win32con.WS_EX_TOOLWINDOW == 0 and win32gui.GetWindowText(hwnd) != '':
+        extra.add((hwnd, win32gui.GetWindowText(hwnd)))
+
 def EnumWindowsHandler2(hwnd,extra):
     if win32gui.GetWindowTextLength(hwnd) != 0 and \
         win32gui.IsWindowEnabled(hwnd) and \
@@ -26,7 +33,7 @@ def EnumWindowsHandler2(hwnd,extra):
 def getOpenWindow():
     desktop = win32gui.GetDesktopWindow()
     windowSet = set()
-    win32gui.EnumWindows(EnumWindowsHandler,windowSet)
+    win32gui.EnumWindows(obsLikeHandler,windowSet)
     return list(windowSet)
 
 if __name__ == '__main__':
