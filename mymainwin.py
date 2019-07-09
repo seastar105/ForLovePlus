@@ -1,6 +1,7 @@
 import sys
 import numpy as np
 import pytesseract
+from googletrans import Translator
 import cv2
 from PyQt5 import QtCore, QtGui
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QDesktopWidget, QWidget, QLabel,
@@ -18,12 +19,43 @@ from Windowlist import getOpenWindow
     And checkbox to choose to translate or not
 '''
 
+class Worker(QtCore.QObject):
+    send_script = QtCore.pyqtSignal(str)
+    trans_signal = QtCore.pyqtSignal(str,str,np.ndarray,str,bool)
+    def __init__(self, parent=None):
+        super(self.__class__,self).__init__(parent)
+        self.translator = Translator()
+
+    def cropOCRandTranslate(self, src, dst, cropImage, config,inverted):
+        # send_script signal should be emitted
+        if (cropImage.shape[0] == 0 and cropImage.shape[1] == 0):
+            self.send_script.emit('')
+            return
+        QtCore.QThread.msleep(100)
+        if src == 'eng' : trSrc = 'en'
+        if src == 'jpn' : trSrc = 'ja'
+        if src == 'kor' : trSrc = 'ko'
+        if dst == 'eng' : trDst = 'en'
+        if dst == 'jpn' : trDst = 'ja'
+        if dst == 'kor' : trDst = 'ko'
+        method = cv2.THRESH_BINARY_INV if inverted else cv2.THRESH_BINARY
+
+        print(trSrc, trDst)
+        im = cv2.cvtColor(cropImage,cv2.COLOR_RGB2GRAY)
+        ret, im = cv2.threshold(im,127,255,method)
+        script = pytesseract.image_to_string(im,lang=src,config=config)
+        print(script)
+        translated = self.translator.translate(script, dest=trDst,src=trSrc)
+        print(translated)
+        self.send_script.emit(translated.text)
+
 class MainWidget(QWidget) :
     def __init__(self):
         super().__init__()
         self.initUI()
 
         self.captureUnit = CaptureUnit()
+        self.invertFlag = False
         self.curHwnd = None
         self.cropImage = None
         self.curQim = None
@@ -31,16 +63,18 @@ class MainWidget(QWidget) :
         self.windowName = None
         self.timer = None
         self.windowlist = getOpenWindow()
-        self.tessThread = QtCore.QThread()
         self.updateList()
         self.listBox.installEventFilter(self)
         self.listBox.activated.connect(self.changeHWND)
         self.rectL, self.rectT, self.rectR, self.rectB = 0,0,0,0
-        self.transFlag = False  # TODO : Translate
+        self.transFlag = False
         self.OCRstring = ''
         self.src = 'eng'
         self.dst = 'jpn'
-        self.config = {}
+        self.config = {'eng':'--psm 6','kor':'--psm 6','jpn':'--psm 6'}
+        self.tessThrd = QtCore.QThread()
+        self.tessClass = Worker()
+        self.tessClass.moveToThread(self.tessThrd)
 
         self.srcLangBox.activated[str].connect(self.changeSrcLang)
         self.dstLangBox.activated[str].connect(self.changeDstLang)
@@ -48,7 +82,34 @@ class MainWidget(QWidget) :
         self.rightInput.textChanged[str].connect(self.rightChanged)
         self.topInput.textChanged[str].connect(self.topChanged)
         self.botInput.textChanged[str].connect(self.botChanged)
+        self.transAble.stateChanged.connect(self.toggleTrans)
+        self.tessClass.send_script.connect(lambda script:self.printTranslation(script))
+        self.tessClass.trans_signal.connect(self.tessClass.cropOCRandTranslate)
+        self.inverted.stateChanged.connect(self.toggleInvert)
         self.resolution.setText('Resolution : ' + str(self.curShape[0]) + 'X' + str(self.curShape[1]))
+        self.tessThrd.start()
+
+    def toggleInvert(self):
+        if self.inverted.isChecked():
+            self.invertFlag = True
+        else:
+            self.invertFlag = False
+
+    def callThrd(self):
+        if self.tessThrd.isRunning():
+            self.tessClass.trans_signal.emit(self.src, self.dst, self.cropImage, self.config[self.src])
+
+    def toggleTrans(self):
+        if self.transAble.isChecked() :
+            self.transFlag = True
+            self.tessClass.trans_signal.emit(self.src, self.dst, self.cropImage, self.config[self.src],self.invertFlag)
+        else:
+            self.transFlag = False
+
+    def printTranslation(self, script):
+        self.scription.setText(script)
+        if self.transFlag:
+            self.tessClass.trans_signal.emit(self.src, self.dst, self.cropImage, self.config[self.src],self.invertFlag)
 
     def changeSrcLang(self, str):
         self.src = str
@@ -63,12 +124,6 @@ class MainWidget(QWidget) :
         self.rightInput.setText('0')
         self.topInput.setText('0')
         self.botInput.setText('0')
-
-    def cropOCRandTranslate(self):
-        if transFlag:
-            self.OCRstring = pytesseract.image_to_string(self.cropImage,lang=self.src,config=self.config[self.src])
-            self.scription.setText(self.OCRstring)
-            # TODO : add Translation
 
     def leftChanged(self, str):
         if str == '':
@@ -120,6 +175,7 @@ class MainWidget(QWidget) :
         self.leftInput = QLineEdit()
         self.rightInput = QLineEdit()
         self.transAble = QCheckBox()
+        self.inverted = QCheckBox()
 
         self.lrValidator = QtGui.QIntValidator()
         self.tbValidator = QtGui.QIntValidator()
@@ -133,6 +189,7 @@ class MainWidget(QWidget) :
         self.rightInput.setValidator(self.lrValidator)
 
         self.scription.setText("Translated Script")
+        self.scription.setMinimumSize(50,50)
         self.srcLangBox.addItem("eng")
         self.srcLangBox.addItem("kor")
         self.srcLangBox.addItem("jpn")
@@ -140,6 +197,7 @@ class MainWidget(QWidget) :
         self.dstLangBox.addItem("eng")
         self.dstLangBox.addItem("kor")
         self.transAble.setText("translate")
+        self.inverted.setText("Binary Invert")
         self.HLayout1.addWidget(self.screen)
         self.HLayout2.addWidget(self.srcLangBox)
         self.HLayout2.addWidget(self.dstLangBox)
@@ -169,7 +227,10 @@ class MainWidget(QWidget) :
         gridLayout1.addWidget(self.rightInput,3,2)
         hlayout.addWidget(self.scription)
         hlayout.addLayout(gridLayout1)
-        hlayout.addWidget(self.transAble)
+        vlayout = QVBoxLayout()
+        vlayout.addWidget(self.transAble)
+        vlayout.addWidget(self.inverted)
+        hlayout.addLayout(vlayout)
         self.VLayout.addLayout(hlayout)
 
     def updateList(self):
@@ -190,8 +251,8 @@ class MainWidget(QWidget) :
             self.curShape = self.outImage.shape
             self.cropFlush()
             self.resolution.setText('Resolution : ' + str(self.curShape[0]) + 'X' + str(self.curShape[1]))
-        cv2.rectangle(self.outImage, (self.rectL,self.rectT),(self.rectR,self.rectB),(0,255,0),2)
         self.cropImage = self.outImage[self.rectT:self.rectB, self.rectL:self.rectR]
+        cv2.rectangle(self.outImage, (self.rectL,self.rectT),(self.rectR,self.rectB),(0,255,0),2)
         height, width, channel = self.outImage.shape
         bytesPerLine = 3 * width
         self.curQim = QtGui.QImage(self.outImage.tobytes(), width, height, bytesPerLine, QtGui.QImage.Format_RGB888)
