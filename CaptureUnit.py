@@ -73,7 +73,7 @@ class CaptureUnit:
         cDC.SelectObject(dataBitMap)
         #First 2 tuples are top-left and bottom-right of destination
         #Third tuple is the start position in source
-        cDC.BitBlt((0,0), (w, h), dcObj, (9, 9), win32con.SRCCOPY)
+        cDC.BitBlt((0,0), (w, h), dcObj, (0, 0), win32con.SRCCOPY)
         #result = windll.user32.PrintWindow(self.hwnd, cDC.GetSafeHdc(),0)
         bmInfo = dataBitMap.GetInfo()
         im = np.frombuffer(dataBitMap.GetBitmapBits(True), dtype = np.uint8)   # Numpy Implementation
@@ -84,6 +84,7 @@ class CaptureUnit:
         win32gui.ReleaseDC(self.hwnd, wDC)
         win32gui.DeleteObject(dataBitMap.GetHandle())
         #Bitmap has 4 channels like: BGRA. Discard Alpha and flip order to RGB
+        if im.size < 4: return np.zeros((1,1,3),dtype=np.uint8)
         return np.array(im.reshape(bmInfo['bmHeight'], bmInfo['bmWidth'], 4)[:, :, -2::-1])
 
     #Begins recording images of the screen
