@@ -1,3 +1,4 @@
 devCode/
 __pycache__/
 .vscode/
+.gitignore
